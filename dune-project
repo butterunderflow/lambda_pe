@@ -15,7 +15,7 @@
  (name lambda_pe)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml dune)
+ (depends sexplib menhirLib ppx_sexp_conv ppx_jane ppx_inline_test)
  (tags
   (topics "partial evaluation" "lambda calculus" "compiler")))
 

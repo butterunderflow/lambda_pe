@@ -1,2 +1,6 @@
 (library
- (name lambda_pe))
+ (name lambda_pe)
+ (libraries sexplib)
+ (inline_tests)
+ (preprocess
+  (pps ppx_sexp_conv ppx_inline_test ppx_jane)))
