@@ -1,15 +1,10 @@
 open Sexplib.Conv
 module StrSet = Set.Make (String)
 
-type ty =
-  | TInt
-  | TFun of ty * ty
-[@@deriving sexp]
-
 type expr =
   | EInt of int
   | EVar of string
-  | ELam of string * ty * expr
+  | ELam of string * expr
   | ELet of string * expr * expr
   | EApp of expr * expr
 [@@deriving sexp]
@@ -20,7 +15,7 @@ let get_free_vars (e : expr) : string list =
     match e with
     | EInt _ -> ()
     | EVar x -> if not (StrSet.mem x env) then vars := StrSet.add x !vars
-    | ELam (x, _, e1) -> go e1 (StrSet.add x env)
+    | ELam (x, e1) -> go e1 (StrSet.add x env)
     | ELet (x, e0, e1) ->
         go e0 env;
         go e1 (StrSet.add x env)
@@ -59,7 +54,7 @@ let rec eval (e : expr) env : value =
   match e with
   | EInt v -> VInt v
   | EVar x -> get x env
-  | ELam (x, _, e0) ->
+  | ELam (x, e0) ->
       let vars = get_free_vars e in
       let captures = List.map (fun x -> (x, get x env)) vars in
       VFun (captures, x, e0)
@@ -79,5 +74,5 @@ let%expect_test "Test: eval lambda" =
   let print_value v = sexp_of_value v |> print_sexp in
   eval (EInt 0) empty_env |> print_value;
   [%expect {| (VInt 0) |}];
-  eval (ELam ("x", TInt, EVar "x")) empty_env |> print_value;
+  eval (ELam ("x", EVar "x")) empty_env |> print_value;
   [%expect {| (VFun (() x (EVar x))) |}]
