@@ -6,13 +6,14 @@ type ty =
 [@@deriving sexp]
 
 type expr =
+  (* use variable lookup as specialize result *)
+  | Var of string
   (* specialize to a value(a pe time int or function value) *)
   | SConst of constant
   | SLam of string * expr
   | SLet of string * expr * expr
   | SApp of expr * expr
   (* specialize to a pe-time code expression *)
-  | DVar of string
   | DLam of string * expr
   | DLet of string * expr * expr
   | DApp of expr * expr
@@ -65,7 +66,7 @@ let empty_env = []
 
 let rec eval (e : expr) (env : env) : value =
   match e with
-  | DVar x -> List.assoc x env
+  | Var x -> List.assoc x env
   | DLam (x, e) ->
       VCode (E1Lam (x, eval e ((x, VCode (E1Var x)) :: env) |> get_code))
   | DLet (x, e0, e1) ->
@@ -98,12 +99,11 @@ let%expect_test "Test: eval 2level lambda" =
   let print_value v = sexp_of_value v |> print_sexp in
   eval (SConst (CInt 0)) empty_env |> print_value;
   [%expect {| (VConst (CInt 0)) |}];
-  eval (SApp (SLam ("x", DVar "x"), SConst (CInt 1))) empty_env
-  |> print_value;
+  eval (SApp (SLam ("x", Var "x"), SConst (CInt 1))) empty_env |> print_value;
   [%expect {| (VConst (CInt 1)) |}];
   (* ((slambda x 77), y) , {y = EVar "xxxx"} *)
   eval
-    (SApp (SLam ("x", SConst (CInt 77)), DVar "y"))
+    (SApp (SLam ("x", SConst (CInt 77)), Var "y"))
     [ ("y", VCode (E1Var "xxxx")) ]
   |> print_value;
   [%expect {| (VConst (CInt 77)) |}]
