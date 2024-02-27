@@ -31,14 +31,14 @@ and value =
   | VCode of code
 
 and code =
-  | EConst of constant
-  | EVar of string
-  | ELam of string * code
-  | ELet of string * code * code
-  | EApp of code * code
+  | E1Const of constant
+  | E1Var of string
+  | E1Lam of string * code
+  | E1Let of string * code * code
+  | E1App of code * code
 [@@deriving sexp]
 
-let build_lambda x e = ELam (x, e)
+let build_lambda x e = E1Lam (x, e)
 
 let get_int (v : value) =
   match v with
@@ -67,23 +67,23 @@ let rec eval (e : expr) (env : env) : value =
   match e with
   | DVar x -> List.assoc x env
   | DLam (x, e) ->
-      VCode (ELam (x, eval e ((x, VCode (EVar x)) :: env) |> get_code))
+      VCode (E1Lam (x, eval e ((x, VCode (E1Var x)) :: env) |> get_code))
   | DLet (x, e0, e1) ->
-      let updated_env = (x, VCode (EVar x)) :: env in
+      let updated_env = (x, VCode (E1Var x)) :: env in
       VCode
         (match eval e0 env with
-        | VCode code -> ELet (x, code, eval e1 updated_env |> get_code)
-        | VConst c -> ELet (x, EConst c, eval e1 updated_env |> get_code)
+        | VCode code -> E1Let (x, code, eval e1 updated_env |> get_code)
+        | VConst c -> E1Let (x, E1Const c, eval e1 updated_env |> get_code)
         | VFun f ->
-            ELet
+            E1Let
               ( x,
-                f (VCode (EVar "_x")) |> get_code,
+                f (VCode (E1Var "_x")) |> get_code,
                 eval e1 updated_env |> get_code ))
   | DApp (e0, e1) ->
-      VCode (EApp (eval e0 env |> get_code, eval e1 env |> get_code))
+      VCode (E1App (eval e0 env |> get_code, eval e1 env |> get_code))
   | DLift e ->
       let v = get_int (eval e env) in
-      VCode (EConst v)
+      VCode (E1Const v)
   | SConst c -> VConst c
   | SLam (x, e) -> VFun (fun v -> eval e ((x, v) :: env))
   | SLet (x, e0, e1) ->
@@ -104,6 +104,6 @@ let%expect_test "Test: eval 2level lambda" =
   (* ((slambda x 77), y) , {y = EVar "xxxx"} *)
   eval
     (SApp (SLam ("x", SConst (CInt 77)), DVar "y"))
-    [ ("y", VCode (EVar "xxxx")) ]
+    [ ("y", VCode (E1Var "xxxx")) ]
   |> print_value;
   [%expect {| (VConst (CInt 77)) |}]
