@@ -1,8 +1,12 @@
 open Sexplib.Conv
 module StrSet = Set.Make (String)
 
-type expr =
-  | EInt of int
+type constant =
+  | CInt of int
+  | CBool of bool
+
+and expr =
+  | EConst of constant
   | EVar of string
   | ELam of string * expr
   | ELet of string * expr * expr
@@ -13,7 +17,7 @@ let get_free_vars (e : expr) : string list =
   let vars = ref StrSet.empty in
   let rec go e env =
     match e with
-    | EInt _ -> ()
+    | EConst _ -> ()
     | EVar x -> if not (StrSet.mem x env) then vars := StrSet.add x !vars
     | ELam (x, e1) -> go e1 (StrSet.add x env)
     | ELet (x, e0, e1) ->
@@ -27,7 +31,7 @@ let get_free_vars (e : expr) : string list =
   StrSet.fold (fun x acc -> x :: acc) !vars []
 
 type value =
-  | VInt of int
+  | VConst of constant
   | VFun of closure
 
 and env = (string * value) list
@@ -36,12 +40,12 @@ and closure = env * string * expr [@@deriving sexp]
 
 let get_int (v : value) =
   match v with
-  | VInt v -> v
+  | VConst v -> v
   | VFun _ -> failwith "neverreach"
 
 let get_fun (v : value) =
   match v with
-  | VInt _ -> failwith "neverreach"
+  | VConst _ -> failwith "neverreach"
   | VFun f -> f
 
 let empty_env = []
@@ -52,7 +56,7 @@ let push x v env = (x, v) :: env
 
 let rec eval (e : expr) env : value =
   match e with
-  | EInt v -> VInt v
+  | EConst v -> VConst v
   | EVar x -> get x env
   | ELam (x, e0) ->
       let vars = get_free_vars e in
@@ -72,7 +76,7 @@ let rec eval (e : expr) env : value =
 let%expect_test "Test: eval lambda" =
   let open Common in
   let print_value v = sexp_of_value v |> print_sexp in
-  eval (EInt 0) empty_env |> print_value;
-  [%expect {| (VInt 0) |}];
+  eval (EConst (CInt 0)) empty_env |> print_value;
+  [%expect {| (VConst (CInt 0)) |}];
   eval (ELam ("x", EVar "x")) empty_env |> print_value;
   [%expect {| (VFun (() x (EVar x))) |}]
