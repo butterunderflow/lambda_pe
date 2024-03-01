@@ -1,9 +1,12 @@
 open Sexplib.Conv
+module E1 = Expr1
 
 type ty =
   | TInt
   | TFun of ty * ty
 [@@deriving sexp]
+
+type constant = E1.constant [@@deriving sexp]
 
 type expr =
   (* use variable lookup as specialize result *)
@@ -18,10 +21,6 @@ type expr =
   | DLet of string * expr * expr
   | DApp of expr * expr
   | DLift of expr
-
-and constant =
-  | CInt of int
-  | CBool of bool
 [@@deriving sexp]
 
 type env = (string * value) list
@@ -31,15 +30,9 @@ and value =
   | VFun of (value -> value)
   | VCode of code
 
-and code =
-  | E1Const of constant
-  | E1Var of string
-  | E1Lam of string * code
-  | E1Let of string * code * code
-  | E1App of code * code
-[@@deriving sexp]
+and code = Expr1.expr [@@deriving sexp]
 
-let build_lambda x e = E1Lam (x, e)
+let build_lambda x e = E1.ELam (x, e)
 
 let get_int (v : value) =
   match v with
@@ -68,23 +61,24 @@ let rec eval (e : expr) (env : env) : value =
   match e with
   | Var x -> List.assoc x env
   | DLam (x, e) ->
-      VCode (E1Lam (x, eval e ((x, VCode (E1Var x)) :: env) |> get_code))
+      VCode (E1.ELam (x, eval e ((x, VCode (E1.EVar x)) :: env) |> get_code))
   | DLet (x, e0, e1) ->
-      let updated_env = (x, VCode (E1Var x)) :: env in
+      let updated_env = (x, VCode (E1.EVar x)) :: env in
       VCode
         (match eval e0 env with
-        | VCode code -> E1Let (x, code, eval e1 updated_env |> get_code)
-        | VConst c -> E1Let (x, E1Const c, eval e1 updated_env |> get_code)
+        | VCode code -> E1.ELet (x, code, eval e1 updated_env |> get_code)
+        | VConst c ->
+            E1.ELet (x, E1.EConst c, eval e1 updated_env |> get_code)
         | VFun f ->
-            E1Let
+            E1.ELet
               ( x,
-                f (VCode (E1Var "_x")) |> get_code,
+                f (VCode (E1.EVar "_x")) |> get_code,
                 eval e1 updated_env |> get_code ))
   | DApp (e0, e1) ->
-      VCode (E1App (eval e0 env |> get_code, eval e1 env |> get_code))
+      VCode (E1.EApp (eval e0 env |> get_code, eval e1 env |> get_code))
   | DLift e ->
       let v = get_int (eval e env) in
-      VCode (E1Const v)
+      VCode (E1.EConst v)
   | SConst c -> VConst c
   | SLam (x, e) -> VFun (fun v -> eval e ((x, v) :: env))
   | SLet (x, e0, e1) ->
@@ -104,6 +98,6 @@ let%expect_test "Test: eval 2level lambda" =
   (* ((slambda x 77), y) , {y = EVar "xxxx"} *)
   eval
     (SApp (SLam ("x", SConst (CInt 77)), Var "y"))
-    [ ("y", VCode (E1Var "xxxx")) ]
+    [ ("y", VCode (E1.EVar "xxxx")) ]
   |> print_value;
   [%expect {| (VConst (CInt 77)) |}]
