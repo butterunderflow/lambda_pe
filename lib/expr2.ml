@@ -55,13 +55,21 @@ let get_code (v : value) =
   | VFun _ ->
       failwith "ill-form"
 
+let var_index = ref 0
+
+let gen_var ~(hint : string) : code =
+  var_index := !var_index + 1;
+  let name =  Printf.sprintf "%s_%d" hint !var_index in
+  E1.EVar name
+
 let empty_env = []
 
 let rec eval (e : expr) (env : env) : value =
   match e with
   | Var x -> List.assoc x env
   | DLam (x, e) ->
-      VCode (E1.ELam (x, eval e ((x, VCode (E1.EVar x)) :: env) |> get_code))
+      let new_var = gen_var ~hint:x in
+      VCode (E1.ELam (x, eval e ((x, VCode new_var) :: env) |> get_code))
   | DLet (x, e0, e1) ->
       let updated_env = (x, VCode (E1.EVar x)) :: env in
       VCode
