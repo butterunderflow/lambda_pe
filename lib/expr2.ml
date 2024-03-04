@@ -34,7 +34,7 @@ and code = Expr1.expr [@@deriving sexp]
 
 let build_lambda x e = E1.ELam (x, e)
 
-let get_int (v : value) =
+let get_const (v : value) =
   match v with
   | VConst c -> c
   | VFun _
@@ -85,7 +85,7 @@ let rec eval (e : expr) (env : env) : value =
   | DApp (e0, e1) ->
       VCode (E1.EApp (eval e0 env |> get_code, eval e1 env |> get_code))
   | DLift e ->
-      let v = get_int (eval e env) in
+      let v = get_const (eval e env) in
       VCode (E1.EConst v)
   | SConst c -> VConst c
   | SLam (x, e) -> VFun (fun v -> eval e ((x, v) :: env))
