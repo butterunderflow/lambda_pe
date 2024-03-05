@@ -1,5 +1,6 @@
 open Sexplib.Conv
 module StrSet = Set.Make (String)
+module A = Ann
 
 type constant =
   | CInt of int
@@ -11,6 +12,7 @@ and expr =
   | ELam of string * expr
   | ELet of string * expr * expr
   | EApp of expr * expr
+  | EAnn of expr * A.t
 [@@deriving sexp]
 
 let get_free_vars (e : expr) : string list =
@@ -26,6 +28,7 @@ let get_free_vars (e : expr) : string list =
     | EApp (e0, e1) ->
         go e0 env;
         go e1 env
+    | EAnn (e0, _) -> go e0 env
   in
   go e StrSet.empty;
   StrSet.fold (fun x acc -> x :: acc) !vars []
@@ -70,6 +73,7 @@ let rec eval (e : expr) env : value =
       let arg = eval e1 env in
       let captures, x, body = get_fun f in
       eval body (push x arg captures)
+  | EAnn (e0, _ann) -> eval e0 env
 
 (* inline tests *)
 
