@@ -1,4 +1,4 @@
 (executable
  (public_name lambda_pe)
  (name main)
- (libraries lambda_pe))
+ (libraries lambda_pe_lib))

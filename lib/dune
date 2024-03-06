@@ -1,5 +1,5 @@
 (library
- (name lambda_pe)
+ (name lambda_pe_lib)
  (libraries sexplib)
  (inline_tests)
  (preprocess
