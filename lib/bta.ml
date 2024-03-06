@@ -21,6 +21,22 @@ module NaiveBTA : BTA_Sig = struct
     go e
 end
 
+module NaiveBTA' : BTA_Sig = struct
+  (* blindly stage every thing to compile time *)
+  let analysis (e : E1.expr) : E2.expr =
+    let rec go e =
+      match e with
+      | E1.EConst c -> E2.SConst c
+      | E1.EVar x -> E2.Var x
+      | E1.ELam (x, e0) -> E2.SLam (x, go e0)
+      | E1.ELet (x, e0, e1) -> E2.SLet (x, go e0, go e1)
+      | E1.EApp (e0, e1) -> E2.SApp (go e0, go e1)
+      | E1.EAnn (e0, _) -> go e0
+      | E1.EOp (op, es) -> E2.SOp (op, List.map go es)
+    in
+    go e
+end
+
 module InferBTA = struct
   [@@@warning "-27"]
 
