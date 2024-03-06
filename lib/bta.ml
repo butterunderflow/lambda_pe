@@ -70,18 +70,12 @@ module InferBTA = struct
 
   and check (e : E1.expr) (a : ann) (env : ann_env) : E2.expr =
     match e with
-    | E1.EConst c -> check_const c a
-    | E1.EVar x -> if a = get x env then E2.Var x else failwith "error"
     | E1.ELam (x, e0) -> check_lambda x e0 a env
     | _ ->
         let e', a' = infer e env in
-        if a' = a then e' else failwith "error"
-
-  and check_const c a =
-    match a with
-    | S -> E2.SConst c
-    | D -> E2.DLift (E2.SConst c)
-    | Func _ -> failwith "error const"
+        if a' = a then e'
+        else if a' = S && a = D then E2.DLift e'
+        else failwith "error"
 
   and check_lambda x e a env =
     match a with
