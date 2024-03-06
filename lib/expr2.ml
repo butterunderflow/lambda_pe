@@ -6,9 +6,11 @@ type ty =
   | TFun of ty * ty
 [@@deriving sexp]
 
-type constant = E1.constant [@@deriving sexp]
+type constant = E1.constant
 
-type expr =
+and op = E1.op
+
+and expr =
   (* use variable lookup as specialize result *)
   | Var of string
   (* specialize to a value(a pe time int or function value) *)
@@ -16,10 +18,12 @@ type expr =
   | SLam of string * expr
   | SLet of string * expr * expr
   | SApp of expr * expr
+  | SOp of op * expr list
   (* specialize to a pe-time code expression *)
   | DLam of string * expr
   | DLet of string * expr * expr
   | DApp of expr * expr
+  | DOp of op * expr list
   | DLift of expr
 [@@deriving sexp]
 
@@ -37,6 +41,22 @@ let build_lambda x e = E1.ELam (x, e)
 let get_const (v : value) =
   match v with
   | VConst c -> c
+  | VFun _
+  | VCode _ ->
+      failwith "ill-form"
+
+let get_int (v : value) =
+  match v with
+  | VConst (CInt v) -> v
+  | VConst (CBool _)
+  | VFun _
+  | VCode _ ->
+      failwith "ill-form"
+
+let get_bool (v : value) =
+  match v with
+  | VConst (CBool v) -> v
+  | VConst (CInt _)
   | VFun _
   | VCode _ ->
       failwith "ill-form"
@@ -59,7 +79,7 @@ let var_index = ref 0
 
 let gen_var ~(hint : string) : code =
   var_index := !var_index + 1;
-  let name =  Printf.sprintf "%s_%d" hint !var_index in
+  let name = Printf.sprintf "%s_%d" hint !var_index in
   E1.EVar name
 
 let empty_env = []
@@ -84,6 +104,8 @@ let rec eval (e : expr) (env : env) : value =
                 eval e1 updated_env |> get_code ))
   | DApp (e0, e1) ->
       VCode (E1.EApp (eval e0 env |> get_code, eval e1 env |> get_code))
+  | DOp (op, es) ->
+      VCode (E1.EOp (op, List.map (fun e0 -> eval e0 env |> get_code) es))
   | DLift e ->
       let v = get_const (eval e env) in
       VCode (E1.EConst v)
@@ -92,6 +114,16 @@ let rec eval (e : expr) (env : env) : value =
   | SLet (x, e0, e1) ->
       let bind_value = eval e0 env in
       eval e1 ((x, bind_value) :: env)
+  | SOp (op, es0) -> (
+      match (op, es0) with
+      | OAdd, [ e0; e1 ] ->
+          VConst (CInt (get_int (eval e0 env) + get_int (eval e1 env)))
+      | OMinus, [ e0; e1 ] ->
+          VConst (CInt (get_int (eval e0 env) - get_int (eval e1 env)))
+      | ONot, [ e0 ] -> VConst (CBool (get_bool (eval e0 env)))
+      | OAnd, [ e0; e1 ] ->
+          VConst (CBool (get_bool (eval e0 env) && get_bool (eval e1 env)))
+      | _ -> failwith "neverreach")
   | SApp (e0, e1) ->
       let func = get_func (eval e0 env) in
       eval e1 env |> func
@@ -108,4 +140,12 @@ let%expect_test "Test: eval 2level lambda" =
     (SApp (SLam ("x", SConst (CInt 77)), Var "y"))
     [ ("y", VCode (E1.EVar "xxxx")) ]
   |> print_value;
-  [%expect {| (VConst (CInt 77)) |}]
+  [%expect {| (VConst (CInt 77)) |}];
+  eval (SOp (OAdd, [ SConst (CInt 7); SConst (CInt 3) ])) empty_env
+  |> print_value;
+  [%expect {| (VConst (CInt 10)) |}];
+  eval
+    (DOp (OAdd, [ DLift (SConst (CInt 7)); DLift (SConst (CInt 3)) ]))
+    empty_env
+  |> print_value;
+  [%expect {| (VCode (EOp OAdd ((EConst (CInt 7)) (EConst (CInt 3))))) |}]

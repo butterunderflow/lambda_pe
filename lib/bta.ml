@@ -16,14 +16,13 @@ module NaiveBTA : BTA_Sig = struct
       | E1.ELet (x, e0, e1) -> E2.DLet (x, go e0, go e1)
       | E1.EApp (e0, e1) -> E2.DApp (go e0, go e1)
       | E1.EAnn (e0, _) -> go e0
+      | E1.EOp (op, es) -> E2.DOp (op, List.map go es)
     in
     go e
 end
 
 module InferBTA = struct
   [@@@warning "-27"]
-
-  [@@@warning "-32"]
 
   type ann = Ann.t
 
@@ -33,9 +32,6 @@ module InferBTA = struct
 
   let get x env = List.assoc x env
 
-  (* let f = fun x -> x in
-   * ... f 1 ...
-   * ... f y ... (* y is dynamic *) *)
   let rec infer (e : E1.expr) (env : ann_env) : E2.expr * ann =
     match e with
     | E1.EConst c -> (E2.SConst c, S)
@@ -59,6 +55,18 @@ module InferBTA = struct
             let e1' = check e1 arg_ann env in
             (E2.SApp (e0', e1'), ret_ann))
     | E1.EAnn (e0, a0) -> (check e0 a0 env, a0)
+    | E1.EOp (op, es) -> (
+        match (op, es) with
+        | OAdd, [ e0; e1 ]
+        | OMinus, [ e0; e1 ]
+        | OAnd, [ e0; e1 ] ->
+            let e0', a0' = infer e0 env in
+            let e1' = check e1 a0' env in
+            (E2.SOp (op, [ e0'; e1' ]), a0')
+        | ONot, [ e0 ] ->
+            let e0', a0' = infer e0 env in
+            (E2.SOp (op, [ e0' ]), D)
+        | _ -> failwith "neverreach")
 
   and check (e : E1.expr) (a : ann) (env : ann_env) : E2.expr =
     match e with
@@ -118,7 +126,21 @@ module InferBTA = struct
     [%expect
       {|
       (SLam x (SLam y (SConst (CInt 0))))
-      (Func (D (Func (S S)))) |}]
+      (Func (D (Func (S S)))) |}];
+    infer (EOp (OAdd, [ EConst (CInt 7); EConst (CInt 3) ])) empty_env
+    |> print_result;
+    [%expect
+      {|
+      (SOp OAdd ((SConst (CInt 7)) (SConst (CInt 3))))
+      S |}];
+    infer
+      (EOp (OAdd, [ EAnn (EConst (CInt 7), D); EConst (CInt 3) ]))
+      empty_env
+    |> print_result;
+    [%expect
+      {|
+      (SOp OAdd ((DLift (SConst (CInt 7))) (DLift (SConst (CInt 3)))))
+      D |}]
 end
 
 include NaiveBTA
