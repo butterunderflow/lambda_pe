@@ -1,6 +1,12 @@
 (library
  (name lambda_pe_lib)
- (libraries sexplib)
+ (libraries sexplib menhirLib)
  (inline_tests)
  (preprocess
   (pps ppx_sexp_conv ppx_inline_test ppx_jane)))
+
+(ocamllex lexer)
+
+(menhir
+ (modules parser)
+ (flags --explain --inspection --table --dump))

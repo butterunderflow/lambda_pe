@@ -11,6 +11,8 @@
 
 (maintainers "Maintainer Name")
 
+(using menhir 2.1)
+
 (package
  (name lambda_pe)
  (synopsis "A short synopsis")
