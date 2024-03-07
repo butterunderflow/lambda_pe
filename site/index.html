@@ -40,7 +40,7 @@
             return () => {
                 let program = document.getElementById(inputId)
                 let outArea = document.getElementById(outputId)
-                outArea.innerHTML = handler(program.value)
+                outArea.value = handler(program.value)
             }
         }
 
