@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <title>Partial Evaluation Lab</title>
+</head>
+
+<body>
+    <h1>Evaluate level 1 expression</h1>
+    <textarea id="expr1EvalArea" rows="5" cols="60" name="description"
+        title="Eval level 1 expression here">(fun x -> x + 6) (1 + 3) </textarea>
+    <input type="button" value="Eval" onclick="executeEval1()">
+    <textarea id="expr1OutValArea" rows="5" cols="60" name="description" title="Output level 1 value here">
+    </textarea>
+
+    <h1>Run binding time analysis on level 1 expression</h1>
+    <textarea id="btaArea" rows="5" cols="60" name="description"
+        title="Eval level two expression here"> (fun x -> (1:D + (((fun y -> 3 + y): S -> S) 5))) : D </textarea>
+    <input type="button" value="BTA" onclick="executeBTA()">
+    <textarea id="btaOutArea" rows="5" cols="60" name="description" title="Output level 2 expression here">
+    </textarea>
+
+    <h1>Staging level 2 expression</h1>
+    <textarea id="expr2EvalArea" rows="5" cols="60" name="description"
+        title="Staging level 2 expression here">fun x -> (1 lift + ((sfun y -> 3 s+ y) $ 5) lift) </textarea>
+    <input type="button" value="Staging" onclick="executeStaging()">
+    <textarea id="expr2OutValArea" rows="5" cols="60" name="description" title="Output level 2 value here">
+    </textarea>
+
+    <script type="text/javascript" src="main.bc.js"></script>
+    <script>
+        const executeEval1 = createExecutor("expr1EvalArea", "expr1OutValArea", programHandler.evalExpr1)
+
+        const executeBTA = createExecutor("btaArea", "btaOutArea", programHandler.bta)
+
+        const executeStaging = createExecutor("expr2EvalArea", "expr2OutValArea", programHandler.evalExpr2)
+
+        function createExecutor(inputId, outputId, handler) {
+            return () => {
+                let program = document.getElementById(inputId)
+                let outArea = document.getElementById(outputId)
+                outArea.innerHTML = handler(program.value)
+            }
+        }
+
+    </script>
+</body>
+
+</html>
