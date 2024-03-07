@@ -75,13 +75,19 @@ module InferBTA = struct
         match (op, es) with
         | OAdd, [ e0; e1 ]
         | OMinus, [ e0; e1 ]
-        | OAnd, [ e0; e1 ] ->
+        | OAnd, [ e0; e1 ] -> (
             let e0', a0' = infer e0 env in
             let e1' = check e1 a0' env in
-            (E2.SOp (op, [ e0'; e1' ]), a0')
-        | ONot, [ e0 ] ->
+            match a0' with
+            | S -> (E2.SOp (op, [ e0'; e1' ]), S)
+            | D -> (E2.DOp (op, [ e0'; e1' ]), D)
+            | Func _ -> failwith "ill-form")
+        | ONot, [ e0 ] -> (
             let e0', a0' = infer e0 env in
-            (E2.SOp (op, [ e0' ]), D)
+            match a0' with
+            | S -> (E2.SOp (op, [ e0' ]), S)
+            | D -> (E2.DOp (op, [ e0' ]), D)
+            | Func _ -> failwith "ill-form")
         | _ -> failwith "neverreach")
 
   and check (e : E1.expr) (a : ann) (env : ann_env) : E2.expr =
@@ -149,7 +155,7 @@ module InferBTA = struct
     |> print_result;
     [%expect
       {|
-      (SOp OAdd ((DLift (SConst (CInt 7))) (DLift (SConst (CInt 3)))))
+      (DOp OAdd ((DLift (SConst (CInt 7))) (DLift (SConst (CInt 3)))))
       D |}]
 end
 
