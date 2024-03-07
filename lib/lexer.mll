@@ -59,7 +59,7 @@ rule token = parse
     | "s||"             { LOR }
     | "$"               { DOLLAR }
     | "!"               { LNOT }
-    | "s!"              { LNOT }
+    | "s!"              { SLNOT }
     | '('               { LPAREN }
     | ')'               { RPAREN }
     | ':'               { COLON }
