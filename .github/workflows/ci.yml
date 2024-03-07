@@ -13,6 +13,10 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  pages: write
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -56,3 +60,19 @@ jobs:
 
       - name: Run tests
         run: opam exec -- dune runtest
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Copy main.bc.js
+        run: cp $GITHUB_WORKSPACE/_build/default/bin/main.bc.js site
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload site directory
+          path: "site/"
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
