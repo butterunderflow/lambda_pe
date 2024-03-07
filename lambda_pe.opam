@@ -10,10 +10,12 @@ bug-reports: "https://github.com/butterunderflow/lambda_pe/issues"
 depends: [
   "dune" {>= "3.7"}
   "sexplib"
+  "js_of_ocaml"
   "menhirLib"
   "ppx_sexp_conv"
   "ppx_jane"
   "ppx_inline_test"
+  "js_of_ocaml-ppx"
   "odoc" {with-doc}
 ]
 build: [

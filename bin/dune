@@ -1,4 +1,7 @@
 (executable
  (public_name lambda_pe)
  (name main)
- (libraries lambda_pe_lib))
+ (modes exe js)
+ (libraries lambda_pe_lib js_of_ocaml)
+ (preprocess
+  (pps js_of_ocaml-ppx)))

@@ -17,7 +17,7 @@
  (name lambda_pe)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends sexplib menhirLib ppx_sexp_conv ppx_jane ppx_inline_test)
+ (depends sexplib js_of_ocaml menhirLib ppx_sexp_conv ppx_jane ppx_inline_test js_of_ocaml-ppx)
  (tags
   (topics "partial evaluation" "lambda calculus" "compiler")))
 
