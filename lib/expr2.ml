@@ -128,6 +128,38 @@ let rec eval (e : expr) (env : env) : value =
       let func = get_func (eval e0 env) in
       eval e1 env |> func
 
+let string_of_expr (e : expr) =
+  let rec go e =
+    match e with
+    | Var x -> x
+    | SConst (CInt i) -> string_of_int i
+    | SConst (CBool b) -> string_of_bool b
+    | SLam (x, e) -> Printf.sprintf "(sfun %s -> %s)" x (go e)
+    | SLet (x, e0, e1) ->
+        Printf.sprintf "(slet %s = %s in %s)" x (go e0) (go e1)
+    | SApp (e0, e1) -> Printf.sprintf "(%s $ %s)" (go e0) (go e1)
+    | SOp (o, es) -> (
+        match (o, es) with
+        | OAdd, [ e0; e1 ] -> Printf.sprintf "(%s s+ %s)" (go e0) (go e1)
+        | OMinus, [ e0; e1 ] -> Printf.sprintf "(%s s- %s)" (go e0) (go e1)
+        | ONot, [ e0 ] -> Printf.sprintf "s!%s" (go e0)
+        | OAnd, [ e0; e1 ] -> Printf.sprintf "(%s s&& %s)" (go e0) (go e1)
+        | _ -> failwith "neverreach")
+    | DLam (x, e) -> Printf.sprintf "(fun %s -> %s)" x (go e)
+    | DLet (x, e0, e1) ->
+        Printf.sprintf "(let %s = %s in %s)" x (go e0) (go e1)
+    | DApp (e0, e1) -> Printf.sprintf "(%s %s)" (go e0) (go e1)
+    | DOp (o, es) -> (
+        match (o, es) with
+        | OAdd, [ e0; e1 ] -> Printf.sprintf "(%s + %s)" (go e0) (go e1)
+        | OMinus, [ e0; e1 ] -> Printf.sprintf "(%s - %s)" (go e0) (go e1)
+        | ONot, [ e0 ] -> Printf.sprintf "!%s" (go e0)
+        | OAnd, [ e0; e1 ] -> Printf.sprintf "(%s && %s)" (go e0) (go e1)
+        | _ -> failwith "neverreach")
+    | DLift e0 -> Printf.sprintf "%s lift" (go e0)
+  in
+  go e
+
 let%expect_test "Test: eval 2level lambda" =
   let open Common in
   let print_value v = sexp_of_value v |> print_sexp in

@@ -15,7 +15,7 @@ let eval_expr2 program =
 
 let bta program =
   let e = Parsing.parse_expr1_string program in
-  Bta.InferBTA.analysis e |> Expr2.sexp_of_expr |> Common.string_of_sexp
+  Bta.InferBTA.analysis e |> Expr2.string_of_expr
 
 let main () =
   Js.export "programHandler"
