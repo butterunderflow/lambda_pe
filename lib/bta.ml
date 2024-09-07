@@ -90,14 +90,21 @@ module InferBTA = struct
             | Func _ -> failwith "ill-form")
         | _ -> failwith "neverreach")
 
-  and check (e : E1.expr) (a : ann) (env : ann_env) : E2.expr =
+  and check (e : E1.expr) (expect_ann : ann) (env : ann_env) : E2.expr =
     match e with
-    | E1.ELam (x, e0) -> check_lambda x e0 a env
-    | _ ->
-        let e', a' = infer e env in
-        if a' = a then e'
-        else if a' = S && a = D then E2.DLift e'
-        else failwith "error"
+    | E1.ELam (x, e0) -> check_lambda x e0 expect_ann env
+    | _ -> (
+        let e', actual_ann = infer e env in
+        if actual_ann = expect_ann then e'
+        else
+          match actual_ann with
+          (* Any expression, which is static or function accept dynamic(in
+             next stage) value, can be lifted to dynamic(next stage) value *)
+          | S
+          | Func (D, _)
+            when expect_ann = D ->
+              E2.DLift e'
+          | _ -> failwith "error")
 
   and check_lambda x e a env =
     match a with
@@ -106,6 +113,8 @@ module InferBTA = struct
         let e' = check e D ((x, D) :: env) in
         E2.DLam (x, e')
     | Func (arg_ann, ret_ann) ->
+        (* Expression with binding time annotation like _ -> _ (S -> D, D ->
+           D, etc.) are all just staging time function. *)
         let e' = check e ret_ann ((x, arg_ann) :: env) in
         E2.SLam (x, e')
 

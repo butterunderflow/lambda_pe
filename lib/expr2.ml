@@ -84,6 +84,14 @@ let gen_var ~(hint : string) : code =
 
 let empty_env = []
 
+let rec lift (v : value) : code =
+  match v with
+  | VConst c -> E1.EConst c
+  | VFun f ->
+      let[@warning "-8"] (E1.EVar para_name as para) = gen_var ~hint:"x" in
+      E1.ELam (para_name, lift (f (VCode para)))
+  | VCode snippet -> snippet (* already in next stage *)
+
 let rec eval (e : expr) (env : env) : value =
   match e with
   | Var x -> List.assoc x env
@@ -107,8 +115,8 @@ let rec eval (e : expr) (env : env) : value =
   | DOp (op, es) ->
       VCode (E1.EOp (op, List.map (fun e0 -> eval e0 env |> get_code) es))
   | DLift e ->
-      let v = get_const (eval e env) in
-      VCode (E1.EConst v)
+      let v = eval e env in
+      VCode (lift v)
   | SConst c -> VConst c
   | SLam (x, e) -> VFun (fun v -> eval e ((x, v) :: env))
   | SLet (x, e0, e1) ->
