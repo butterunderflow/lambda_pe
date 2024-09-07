@@ -26,7 +26,7 @@ let%expect_test "Test: inference binding time annotation" =
     {|
       (SLam x (DLam y (DLift (SConst (CInt 0)))))
       (Func (S D)) |}];
-  print_infered {| ((fun x -> fun y -> 0): D -> S -> S) |};
+  print_infered {| (fun x -> fun y -> 0): D -> S -> S |};
   [%expect
     {|
       (SLam x (SLam y (SConst (CInt 0))))
@@ -40,4 +40,33 @@ let%expect_test "Test: inference binding time annotation" =
   [%expect
     {|
       (DOp OAdd ((DLift (SConst (CInt 7))) (DLift (SConst (CInt 3)))))
-      D |}]
+      D |}];
+
+  print_infered {| (fun y -> y) : D -> D |};
+  [%expect {|
+    (SLam y (Var y))
+    (Func (D D))
+    |}];
+
+  (* lift(delay) function with dynamic argument to dynamic(next stage) *)
+  print_infered {| ((fun y -> y) : D -> D) : D |};
+  [%expect {|
+    (DLift (SLam y (Var y)))
+    D
+    |}];
+  print_infered
+    {|
+                 ((fun x -> fun y -> 0): D -> D -> S) : D
+                 |};
+  [%expect {|
+    (DLift (SLam x (SLam y (SConst (CInt 0)))))
+    D
+    |}];
+  print_infered
+    {|
+     ((fun x -> fun y -> x): D -> D -> D) : D
+     |};
+  [%expect {|
+    (DLift (SLam x (SLam y (Var x))))
+    D
+    |}]

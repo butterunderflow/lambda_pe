@@ -77,6 +77,8 @@ let get_code (v : value) =
 
 let var_index = ref 0
 
+let reset_index () = var_index := 0
+
 let gen_var ~(hint : string) : code =
   var_index := !var_index + 1;
   let name = Printf.sprintf "%s_%d" hint !var_index in
