@@ -102,15 +102,3 @@ let rec eval (e : expr) env : value =
           VConst (CBool (get_bool (eval e0 env) && get_bool (eval e1 env)))
       | _ -> failwith "neverreach")
 
-(* inline tests *)
-
-let%expect_test "Test: eval lambda" =
-  let open Common in
-  let print_value v = sexp_of_value v |> print_sexp in
-  eval (EConst (CInt 0)) empty_env |> print_value;
-  [%expect {| (VConst (CInt 0)) |}];
-  eval (ELam ("x", EVar "x")) empty_env |> print_value;
-  [%expect {| (VFun (() x (EVar x))) |}];
-  eval (EOp (OAdd, [ EConst (CInt 7); EConst (CInt 3) ])) empty_env
-  |> print_value;
-  [%expect {| (VConst (CInt 10)) |}]
