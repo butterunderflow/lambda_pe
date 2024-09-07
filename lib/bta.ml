@@ -91,20 +91,23 @@ module InferBTA = struct
         | _ -> failwith "neverreach")
 
   and check (e : E1.expr) (expect_ann : ann) (env : ann_env) : E2.expr =
+    let rec liftable (a : ann) =
+      (* Any expression, which is static or function accept dynamic(in next
+         stage) value, can be lifted to dynamic(next stage) value *)
+      match a with
+      | S
+      | D ->
+          true
+      | Func (D, result_ann) -> liftable result_ann
+      | _ -> false
+    in
     match e with
     | E1.ELam (x, e0) -> check_lambda x e0 expect_ann env
-    | _ -> (
+    | _ ->
         let e', actual_ann = infer e env in
         if actual_ann = expect_ann then e'
-        else
-          match actual_ann with
-          (* Any expression, which is static or function accept dynamic(in
-             next stage) value, can be lifted to dynamic(next stage) value *)
-          | S
-          | Func (D, _)
-            when expect_ann = D ->
-              E2.DLift e'
-          | _ -> failwith "error")
+        else if expect_ann = D && liftable actual_ann then E2.DLift e'
+        else failwith "error"
 
   and check_lambda x e a env =
     match a with
