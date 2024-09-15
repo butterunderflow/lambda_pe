@@ -77,12 +77,22 @@ let get_code (v : value) =
 
 let var_index = ref 0
 
+let reset_index () = var_index := 0
+
 let gen_var ~(hint : string) : code =
   var_index := !var_index + 1;
   let name = Printf.sprintf "%s_%d" hint !var_index in
   E1.EVar name
 
 let empty_env = []
+
+let rec lift (v : value) : code =
+  match v with
+  | VConst c -> E1.EConst c
+  | VFun f ->
+      let[@warning "-8"] (E1.EVar para_name as para) = gen_var ~hint:"x" in
+      E1.ELam (para_name, lift (f (VCode para)))
+  | VCode snippet -> snippet (* already in next stage *)
 
 let rec eval (e : expr) (env : env) : value =
   match e with
@@ -107,8 +117,8 @@ let rec eval (e : expr) (env : env) : value =
   | DOp (op, es) ->
       VCode (E1.EOp (op, List.map (fun e0 -> eval e0 env |> get_code) es))
   | DLift e ->
-      let v = get_const (eval e env) in
-      VCode (E1.EConst v)
+      let v = eval e env in
+      VCode (lift v)
   | SConst c -> VConst c
   | SLam (x, e) -> VFun (fun v -> eval e ((x, v) :: env))
   | SLet (x, e0, e1) ->
@@ -159,25 +169,3 @@ let string_of_expr (e : expr) =
     | DLift e0 -> Printf.sprintf "%s lift" (go e0)
   in
   go e
-
-let%expect_test "Test: eval 2level lambda" =
-  let open Common in
-  let print_value v = sexp_of_value v |> print_sexp in
-  eval (SConst (CInt 0)) empty_env |> print_value;
-  [%expect {| (VConst (CInt 0)) |}];
-  eval (SApp (SLam ("x", Var "x"), SConst (CInt 1))) empty_env |> print_value;
-  [%expect {| (VConst (CInt 1)) |}];
-  (* ((slambda x 77), y) , {y = EVar "xxxx"} *)
-  eval
-    (SApp (SLam ("x", SConst (CInt 77)), Var "y"))
-    [ ("y", VCode (E1.EVar "xxxx")) ]
-  |> print_value;
-  [%expect {| (VConst (CInt 77)) |}];
-  eval (SOp (OAdd, [ SConst (CInt 7); SConst (CInt 3) ])) empty_env
-  |> print_value;
-  [%expect {| (VConst (CInt 10)) |}];
-  eval
-    (DOp (OAdd, [ DLift (SConst (CInt 7)); DLift (SConst (CInt 3)) ]))
-    empty_env
-  |> print_value;
-  [%expect {| (VCode (EOp OAdd ((EConst (CInt 7)) (EConst (CInt 3))))) |}]

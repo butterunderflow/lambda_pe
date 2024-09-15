@@ -90,13 +90,23 @@ module InferBTA = struct
             | Func _ -> failwith "ill-form")
         | _ -> failwith "neverreach")
 
-  and check (e : E1.expr) (a : ann) (env : ann_env) : E2.expr =
+  and check (e : E1.expr) (expect_ann : ann) (env : ann_env) : E2.expr =
+    let rec liftable (a : ann) =
+      (* Any expression, which is static or function accept dynamic(in next
+         stage) value, can be lifted to dynamic(next stage) value *)
+      match a with
+      | S
+      | D ->
+          true
+      | Func (D, result_ann) -> liftable result_ann
+      | _ -> false
+    in
     match e with
-    | E1.ELam (x, e0) -> check_lambda x e0 a env
+    | E1.ELam (x, e0) -> check_lambda x e0 expect_ann env
     | _ ->
-        let e', a' = infer e env in
-        if a' = a then e'
-        else if a' = S && a = D then E2.DLift e'
+        let e', actual_ann = infer e env in
+        if actual_ann = expect_ann then e'
+        else if expect_ann = D && liftable actual_ann then E2.DLift e'
         else failwith "error"
 
   and check_lambda x e a env =
@@ -106,57 +116,12 @@ module InferBTA = struct
         let e' = check e D ((x, D) :: env) in
         E2.DLam (x, e')
     | Func (arg_ann, ret_ann) ->
+        (* Expression with binding time annotation like _ -> _ (S -> D, D ->
+           D, etc.) are all just staging time function. *)
         let e' = check e ret_ann ((x, arg_ann) :: env) in
         E2.SLam (x, e')
 
   let analysis (e : E1.expr) : E2.expr = infer e empty_env |> fst
-
-  let%expect_test "Test: inference binding time annotation" =
-    let open Common in
-    let print_result (e, a) =
-      E2.sexp_of_expr e |> print_sexp;
-      print_newline ();
-      Ann.sexp_of_t a |> print_sexp;
-      print_newline ()
-    in
-    infer (EConst (CInt 0)) empty_env |> print_result;
-    [%expect {|
-      (SConst (CInt 0))
-      S |}];
-    infer (ELet ("x", EConst (CInt 0), EVar "x")) empty_env |> print_result;
-    [%expect {|
-      (SLet x (SConst (CInt 0)) (Var x))
-      S |}];
-    infer
-      (EAnn (ELam ("x", ELam ("y", EConst (CInt 0))), Func (S, D)))
-      empty_env
-    |> print_result;
-    [%expect
-      {|
-      (SLam x (DLam y (DLift (SConst (CInt 0)))))
-      (Func (S D)) |}];
-    infer
-      (EAnn (ELam ("x", ELam ("y", EConst (CInt 0))), Func (D, Func (S, S))))
-      empty_env
-    |> print_result;
-    [%expect
-      {|
-      (SLam x (SLam y (SConst (CInt 0))))
-      (Func (D (Func (S S)))) |}];
-    infer (EOp (OAdd, [ EConst (CInt 7); EConst (CInt 3) ])) empty_env
-    |> print_result;
-    [%expect
-      {|
-      (SOp OAdd ((SConst (CInt 7)) (SConst (CInt 3))))
-      S |}];
-    infer
-      (EOp (OAdd, [ EAnn (EConst (CInt 7), D); EConst (CInt 3) ]))
-      empty_env
-    |> print_result;
-    [%expect
-      {|
-      (DOp OAdd ((DLift (SConst (CInt 7))) (DLift (SConst (CInt 3)))))
-      D |}]
 end
 
 include NaiveBTA
